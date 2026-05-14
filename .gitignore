@@ -1,0 +1,18 @@
+# Credenciales y configuración sensible
+config/db_credenciales.php
+
+# Script de reset de contraseñas (solo para uso local)
+public/actualizar_pass.php
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+/logs/
+
+# Dependencias PHP (si usas Composer en el futuro)
+/vendor/
+composer.lock
