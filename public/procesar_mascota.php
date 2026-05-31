@@ -2,48 +2,149 @@
 require_once __DIR__ . '/includes/seguridad.php';
 require_once __DIR__ . '/includes/db.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $pdo = getDB();
-    
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header("Location: mascotas.php");
+    exit;
+}
+
+$action = trim($_POST['action'] ?? '');
+$pdo    = getDB();
+
+if ($action === 'crear') {
+    $dueno_nombre   = trim($_POST['dueno_nombre']   ?? '');
+    $dueno_telefono = trim($_POST['dueno_telefono'] ?? '');
+    $nombre         = trim($_POST['nombre']         ?? '');
+    $especie        = trim($_POST['especie']        ?? '');
+    $peso           = trim($_POST['peso']           ?? '');
+
+    if (!$dueno_nombre || !$dueno_telefono || !$nombre || !$especie || !$peso) {
+        $_SESSION['mensaje_error'] = "Por favor complete todos los campos requeridos.";
+        header("Location: registrar_mascota.php");
+        exit;
+    }
+
     try {
-        // Iniciar transacción para asegurar que ambas tabdas se llenen o ninguna (ACID)
         $pdo->beginTransaction();
 
-        // 1. Insertar Dueño
-        $stmtDueno = $pdo->prepare("INSERT INTO duenos (nombre, telefono) VALUES (:nombre, :telefono)");
-        $stmtDueno->execute([
-            ':nombre'   => $_POST['dueno_nombre'],
-            ':telefono' => $_POST['dueno_telefono']
-        ]);
+        $stmt = $pdo->query("SELECT MAX(CAST(SUBSTRING(identificador, 3) AS UNSIGNED)) FROM mascotas WHERE identificador REGEXP '^M-[0-9]+$'");
+        $max  = (int)$stmt->fetchColumn();
+        $identificador = 'M-' . str_pad($max + 1, 3, '0', STR_PAD_LEFT);
+
+        $pdo->prepare("INSERT INTO duenos (nombre, telefono) VALUES (:nombre, :telefono)")
+            ->execute([':nombre' => $dueno_nombre, ':telefono' => $dueno_telefono]);
         $dueno_id = $pdo->lastInsertId();
 
-        // 2. Insertar Mascota
-        $stmtMascota = $pdo->prepare("
-            INSERT INTO mascotas (dueno_id, identificador, nombre, especie, raza, peso, fecha_nacimiento) 
+        $pdo->prepare("
+            INSERT INTO mascotas (dueno_id, identificador, nombre, especie, raza, peso, fecha_nacimiento)
             VALUES (:dueno_id, :identificador, :nombre, :especie, :raza, :peso, :fecha_nacimiento)
-        ");
-        $stmtMascota->execute([
+        ")->execute([
             ':dueno_id'         => $dueno_id,
-            ':identificador'    => $_POST['identificador'],
-            ':nombre'           => $_POST['nombre'],
-            ':especie'          => $_POST['especie'],
-            ':raza'             => $_POST['raza'],
-            ':peso'             => $_POST['peso'],
-            ':fecha_nacimiento' => $_POST['fecha_nacimiento'] ?: null
+            ':identificador'    => $identificador,
+            ':nombre'           => $nombre,
+            ':especie'          => $especie,
+            ':raza'             => trim($_POST['raza'] ?? ''),
+            ':peso'             => (float)$peso,
+            ':fecha_nacimiento' => $_POST['fecha_nacimiento'] ?: null,
         ]);
 
         $pdo->commit();
-        
-        $_SESSION['mensaje'] = "Registro guardado exitosamente.";
+        $_SESSION['mensaje'] = "Mascota registrada exitosamente.";
         header("Location: mascotas.php");
         exit;
 
     } catch (PDOException $e) {
-        $pdo->rollBack(); // Revertir cambios si algo falla
-        error_log("Error al registrar: " . $e->getMessage());
-        die("Error al guardar el registro. Intente de nuevo.");
+        $pdo->rollBack();
+        error_log($e->getMessage());
+        $_SESSION['mensaje_error'] = "Error al guardar el registro. Intente de nuevo.";
+        header("Location: registrar_mascota.php");
+        exit;
     }
+
+} elseif ($action === 'editar') {
+    $id = (int)($_POST['id'] ?? 0);
+    if (!$id) { header("Location: mascotas.php"); exit; }
+
+    try {
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("SELECT dueno_id FROM mascotas WHERE id=:id");
+        $stmt->execute([':id' => $id]);
+        $dueno_id = $stmt->fetchColumn();
+
+        if (!$dueno_id) { $pdo->rollBack(); header("Location: mascotas.php"); exit; }
+
+        $pdo->prepare("UPDATE duenos SET nombre=:nombre, telefono=:telefono WHERE id=:id")
+            ->execute([
+                ':nombre'   => trim($_POST['dueno_nombre']),
+                ':telefono' => trim($_POST['dueno_telefono']),
+                ':id'       => $dueno_id,
+            ]);
+
+        $pdo->prepare("
+            UPDATE mascotas
+            SET identificador=:identificador, nombre=:nombre, especie=:especie,
+                raza=:raza, peso=:peso, fecha_nacimiento=:fecha_nacimiento
+            WHERE id=:id
+        ")->execute([
+            ':identificador'    => trim($_POST['identificador']),
+            ':nombre'           => trim($_POST['nombre']),
+            ':especie'          => $_POST['especie'],
+            ':raza'             => trim($_POST['raza']),
+            ':peso'             => (float)$_POST['peso'],
+            ':fecha_nacimiento' => $_POST['fecha_nacimiento'] ?: null,
+            ':id'               => $id,
+        ]);
+
+        $pdo->commit();
+        $_SESSION['mensaje'] = "Mascota actualizada correctamente.";
+        header("Location: mascotas.php");
+        exit;
+
+    } catch (PDOException $e) {
+        $pdo->rollBack();
+        error_log($e->getMessage());
+        $_SESSION['mensaje_error'] = "Error al actualizar. Intente de nuevo.";
+        header("Location: mascotas.php");
+        exit;
+    }
+
+} elseif ($action === 'eliminar') {
+    $id = (int)($_POST['id'] ?? 0);
+    if (!$id) { header("Location: mascotas.php"); exit; }
+
+    try {
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("SELECT dueno_id FROM mascotas WHERE id=:id");
+        $stmt->execute([':id' => $id]);
+        $dueno_id = $stmt->fetchColumn();
+
+        $pdo->prepare("DELETE FROM historial_clinico WHERE mascota_id=:id")->execute([':id' => $id]);
+        $pdo->prepare("DELETE FROM vacunas          WHERE mascota_id=:id")->execute([':id' => $id]);
+        $pdo->prepare("DELETE FROM mascotas         WHERE id=:id"        )->execute([':id' => $id]);
+
+        if ($dueno_id) {
+            $cnt = $pdo->prepare("SELECT COUNT(*) FROM mascotas WHERE dueno_id=:id");
+            $cnt->execute([':id' => $dueno_id]);
+            if ((int)$cnt->fetchColumn() === 0) {
+                $pdo->prepare("DELETE FROM duenos WHERE id=:id")->execute([':id' => $dueno_id]);
+            }
+        }
+
+        $pdo->commit();
+        $_SESSION['mensaje'] = "Mascota eliminada correctamente.";
+        header("Location: mascotas.php");
+        exit;
+
+    } catch (PDOException $e) {
+        $pdo->rollBack();
+        error_log($e->getMessage());
+        $_SESSION['mensaje_error'] = "Error al eliminar. Intente de nuevo.";
+        header("Location: mascotas.php");
+        exit;
+    }
+
 } else {
-    header("Location: index.php");
+    header("Location: mascotas.php");
     exit;
 }

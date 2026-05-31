@@ -1,5 +1,15 @@
 <?php
 require_once __DIR__ . '/includes/seguridad.php';
+require_once __DIR__ . '/includes/db.php';
+
+$mensaje_error = $_SESSION['mensaje_error'] ?? '';
+unset($_SESSION['mensaje_error']);
+
+$pdo  = getDB();
+$stmt = $pdo->query("SELECT MAX(CAST(SUBSTRING(identificador, 3) AS UNSIGNED)) FROM mascotas WHERE identificador REGEXP '^M-[0-9]+$'");
+$max  = (int)$stmt->fetchColumn();
+$siguiente_id = 'M-' . str_pad($max + 1, 3, '0', STR_PAD_LEFT);
+
 require_once __DIR__ . '/includes/header.php';
 ?>
 
@@ -8,11 +18,19 @@ require_once __DIR__ . '/includes/header.php';
     <p>Complete los datos del dueño y la mascota para crear el expediente.</p>
 </div>
 
+<?php if ($mensaje_error): ?>
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i><?= e($mensaje_error) ?>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+<?php endif; ?>
+
 <div class="row justify-content-center">
     <div class="col-lg-9 col-xl-8">
         <div class="card card-stat">
             <div class="card-body p-4 p-md-5">
                 <form action="procesar_mascota.php" method="POST" novalidate>
+                    <input type="hidden" name="action" value="crear">
 
                     <!-- Sección Dueño -->
                     <div class="form-section-title">
@@ -25,6 +43,7 @@ require_once __DIR__ . '/includes/header.php';
                                 <span class="input-group-text"><i class="bi bi-person"></i></span>
                                 <input type="text" name="dueno_nombre" class="form-control"
                                        placeholder="Ej: María González" required>
+                                <div class="invalid-feedback">Este campo es requerido.</div>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -34,6 +53,7 @@ require_once __DIR__ . '/includes/header.php';
                                 <input type="tel" name="dueno_telefono" class="form-control"
                                        placeholder="Ej: 5512345678"
                                        pattern="[0-9]{10,15}" required>
+                                <div class="invalid-feedback">Ingrese un número válido (10-15 dígitos).</div>
                             </div>
                         </div>
                     </div>
@@ -49,9 +69,10 @@ require_once __DIR__ . '/includes/header.php';
                             <label class="form-label">Identificador Único</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
-                                <input type="text" name="identificador" class="form-control"
-                                       placeholder="Ej: M-003" required>
+                                <input type="text" name="identificador" class="form-control bg-light"
+                                       value="<?= e($siguiente_id) ?>" readonly>
                             </div>
+                            <div class="form-text text-muted">Generado automáticamente.</div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Nombre de la Mascota</label>
@@ -59,6 +80,7 @@ require_once __DIR__ . '/includes/header.php';
                                 <span class="input-group-text"><i class="bi bi-tag"></i></span>
                                 <input type="text" name="nombre" class="form-control"
                                        placeholder="Ej: Luna" required>
+                                <div class="invalid-feedback">Este campo es requerido.</div>
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -69,6 +91,7 @@ require_once __DIR__ . '/includes/header.php';
                                 <option value="Ave">🐦 Ave</option>
                                 <option value="Otro">🐾 Otro</option>
                             </select>
+                            <div class="invalid-feedback">Seleccione una especie.</div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Raza</label>
@@ -80,6 +103,7 @@ require_once __DIR__ . '/includes/header.php';
                                 <input type="number" step="0.01" min="0" name="peso" class="form-control"
                                        placeholder="Ej: 12.5" required>
                                 <span class="input-group-text text-muted">kg</span>
+                                <div class="invalid-feedback">Ingrese el peso.</div>
                             </div>
                         </div>
                         <div class="col-md-4">
