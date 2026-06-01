@@ -1,6 +1,3 @@
-# Credenciales y configuración sensible
-config/db_credenciales.php
-
 # Script de reset de contraseñas (solo para uso local)
 public/actualizar_pass.php
 
