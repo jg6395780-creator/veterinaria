@@ -1,17 +1,11 @@
-FROM php:8.2-apache
+FROM php:8.2-cli
 
 RUN docker-php-ext-install pdo pdo_mysql
 
-RUN a2dismod mpm_event && a2enmod mpm_prefork rewrite
+WORKDIR /var/www/html
 
-COPY . /var/www/html/
-
-RUN echo '<VirtualHost *:80>\n\
-    DocumentRoot /var/www/html/public\n\
-    <Directory /var/www/html/public>\n\
-        AllowOverride All\n\
-        Require all granted\n\
-    </Directory>\n\
-</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
+COPY . .
 
 EXPOSE 80
+
+CMD ["php", "-S", "0.0.0.0:80", "-t", "public"]
