@@ -1,15 +1,26 @@
 export default async function handler(req, res) {
-  const railwayUrl = 'https://veterinaria-production-fe60.up.railway.app' + req.url;
+  const railwayBase = 'https://veterinaria-production-fe60.up.railway.app';
+  const targetUrl = railwayBase + req.url;
 
-  const response = await fetch(railwayUrl, {
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    return res.status(200).end();
+  }
+
+  const fetchOptions = {
     method: req.method,
     headers: { 'Content-Type': 'application/json' },
-    body: req.method !== 'GET' ? JSON.stringify(req.body) : undefined,
-  });
+  };
 
+  if (req.method === 'POST') {
+    fetchOptions.body = JSON.stringify(req.body);
+  }
+
+  const response = await fetch(targetUrl, fetchOptions);
   const data = await response.json();
 
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.json(data);
+  res.status(response.status).json(data);
 }

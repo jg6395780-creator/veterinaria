@@ -1,5 +1,7 @@
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/proxy" }
+    { "source": "/api/login.php", "destination": "/api/proxy?file=login" },
+    { "source": "/api/mis_mascotas.php", "destination": "/api/proxy" },
+    { "source": "/api/detalle_mascota.php", "destination": "/api/proxy" }
   ]
 }
