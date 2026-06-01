@@ -37,7 +37,7 @@ require_once __DIR__ . '/includes/header.php';
                         <i class="bi bi-person-circle text-primary"></i>Datos del Dueño
                     </div>
                     <div class="row g-3 mb-4">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label">Nombre Completo</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-person"></i></span>
@@ -46,7 +46,7 @@ require_once __DIR__ . '/includes/header.php';
                                 <div class="invalid-feedback">Este campo es requerido.</div>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label">Teléfono (WhatsApp)</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-whatsapp"></i></span>
@@ -54,6 +54,15 @@ require_once __DIR__ . '/includes/header.php';
                                        placeholder="Ej: 5512345678"
                                        pattern="[0-9]{10,15}" required>
                                 <div class="invalid-feedback">Ingrese un número válido (10-15 dígitos).</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Correo Electrónico</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                                <input type="email" name="dueno_email" class="form-control"
+                                       placeholder="Ej: maria@gmail.com" required>
+                                <div class="invalid-feedback">Ingrese un correo válido.</div>
                             </div>
                         </div>
                     </div>
@@ -95,7 +104,8 @@ require_once __DIR__ . '/includes/header.php';
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Raza</label>
-                            <input type="text" name="raza" class="form-control" placeholder="Ej: Labrador">
+                            <input type="text" name="raza" class="form-control" placeholder="Ej: Labrador" required>
+                            <div class="invalid-feedback">Este campo es requerido.</div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Peso (kg)</label>
@@ -108,7 +118,8 @@ require_once __DIR__ . '/includes/header.php';
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Fecha de Nacimiento</label>
-                            <input type="date" name="fecha_nacimiento" class="form-control">
+                            <input type="date" name="fecha_nacimiento" class="form-control" required>
+                            <div class="invalid-feedback">Este campo es requerido.</div>
                         </div>
                     </div>
 

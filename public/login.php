@@ -29,6 +29,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header("Location: index.php");
             exit;
         } else {
+            // Intentar autenticación como dueño (por email)
+            $stmt2 = $pdo->prepare("SELECT * FROM duenos WHERE email = :email AND password IS NOT NULL");
+            $stmt2->execute([':email' => $username]);
+            $dueno = $stmt2->fetch();
+            if ($dueno && password_verify($password, $dueno['password'])) {
+                session_regenerate_id(true);
+                $_SESSION['user_id']   = $dueno['id'];
+                $_SESSION['user_name'] = $dueno['nombre'];
+                $_SESSION['user_rol']  = 'dueno';
+                $_SESSION['dueno_id']  = $dueno['id'];
+                header("Location: index.php");
+                exit;
+            }
             $error = "Usuario o contraseña incorrectos.";
         }
     }

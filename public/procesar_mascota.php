@@ -13,12 +13,22 @@ $pdo    = getDB();
 if ($action === 'crear') {
     $dueno_nombre   = trim($_POST['dueno_nombre']   ?? '');
     $dueno_telefono = trim($_POST['dueno_telefono'] ?? '');
+    $dueno_email    = trim($_POST['dueno_email']    ?? '');
     $nombre         = trim($_POST['nombre']         ?? '');
     $especie        = trim($_POST['especie']        ?? '');
     $peso           = trim($_POST['peso']           ?? '');
 
-    if (!$dueno_nombre || !$dueno_telefono || !$nombre || !$especie || !$peso) {
+    $raza            = trim($_POST['raza']            ?? '');
+    $fecha_nacimiento = trim($_POST['fecha_nacimiento'] ?? '');
+
+    if (!$dueno_nombre || !$dueno_telefono || !$dueno_email || !$nombre || !$especie || !$peso || !$raza || !$fecha_nacimiento) {
         $_SESSION['mensaje_error'] = "Por favor complete todos los campos requeridos.";
+        header("Location: registrar_mascota.php");
+        exit;
+    }
+
+    if (!filter_var($dueno_email, FILTER_VALIDATE_EMAIL)) {
+        $_SESSION['mensaje_error'] = "El correo electrónico no es válido.";
         header("Location: registrar_mascota.php");
         exit;
     }
@@ -30,8 +40,15 @@ if ($action === 'crear') {
         $max  = (int)$stmt->fetchColumn();
         $identificador = 'M-' . str_pad($max + 1, 3, '0', STR_PAD_LEFT);
 
-        $pdo->prepare("INSERT INTO duenos (nombre, telefono) VALUES (:nombre, :telefono)")
-            ->execute([':nombre' => $dueno_nombre, ':telefono' => $dueno_telefono]);
+        $temp_password_hash = password_hash($identificador, PASSWORD_DEFAULT);
+
+        $pdo->prepare("INSERT INTO duenos (nombre, telefono, email, password) VALUES (:nombre, :telefono, :email, :password)")
+            ->execute([
+                ':nombre'   => $dueno_nombre,
+                ':telefono' => $dueno_telefono,
+                ':email'    => $dueno_email ?: null,
+                ':password' => $temp_password_hash,
+            ]);
         $dueno_id = $pdo->lastInsertId();
 
         $pdo->prepare("
@@ -42,13 +59,14 @@ if ($action === 'crear') {
             ':identificador'    => $identificador,
             ':nombre'           => $nombre,
             ':especie'          => $especie,
-            ':raza'             => trim($_POST['raza'] ?? ''),
+            ':raza'             => $raza,
             ':peso'             => (float)$peso,
-            ':fecha_nacimiento' => $_POST['fecha_nacimiento'] ?: null,
+            ':fecha_nacimiento' => $fecha_nacimiento ?: null,
         ]);
 
         $pdo->commit();
-        $_SESSION['mensaje'] = "Mascota registrada exitosamente.";
+
+        $_SESSION['mensaje'] = "Mascota registrada. Acceso portal dueño — usuario: {$dueno_email} / contraseña temporal: {$identificador}";
         header("Location: mascotas.php");
         exit;
 
@@ -73,10 +91,11 @@ if ($action === 'crear') {
 
         if (!$dueno_id) { $pdo->rollBack(); header("Location: mascotas.php"); exit; }
 
-        $pdo->prepare("UPDATE duenos SET nombre=:nombre, telefono=:telefono WHERE id=:id")
+        $pdo->prepare("UPDATE duenos SET nombre=:nombre, telefono=:telefono, email=:email WHERE id=:id")
             ->execute([
                 ':nombre'   => trim($_POST['dueno_nombre']),
                 ':telefono' => trim($_POST['dueno_telefono']),
+                ':email'    => trim($_POST['dueno_email']) ?: null,
                 ':id'       => $dueno_id,
             ]);
 

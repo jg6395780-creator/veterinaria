@@ -28,9 +28,11 @@
             <a href="mascotas.php" class="sidebar-link <?= basename($_SERVER['PHP_SELF']) === 'mascotas.php' ? 'active' : '' ?>">
                 <i class="bi bi-clipboard2-pulse"></i> Mascotas
             </a>
+            <?php if ($_SESSION['user_rol'] !== 'dueno'): ?>
             <a href="registrar_mascota.php" class="sidebar-link <?= basename($_SERVER['PHP_SELF']) === 'registrar_mascota.php' ? 'active' : '' ?>">
                 <i class="bi bi-plus-circle"></i> Nuevo Registro
             </a>
+            <?php endif; ?>
 
             <?php if ($_SESSION['user_rol'] === 'admin' || $_SESSION['user_rol'] === 'veterinario'): ?>
             <a href="historial.php" class="sidebar-link <?= basename($_SERVER['PHP_SELF']) === 'historial.php' ? 'active' : '' ?>">

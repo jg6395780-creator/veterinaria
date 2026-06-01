@@ -3,14 +3,27 @@ require_once __DIR__ . '/includes/seguridad.php';
 require_once __DIR__ . '/includes/db.php';
 
 $pdo  = getDB();
-$stmt = $pdo->prepare("
-    SELECT m.id, m.dueno_id, m.identificador, m.nombre, m.especie, m.raza,
-           m.peso, m.fecha_nacimiento, d.nombre AS dueno, d.telefono
-    FROM mascotas m
-    JOIN duenos d ON m.dueno_id = d.id
-    ORDER BY m.nombre ASC
-");
-$stmt->execute();
+
+if ($_SESSION['user_rol'] === 'dueno') {
+    $stmt = $pdo->prepare("
+        SELECT m.id, m.dueno_id, m.identificador, m.nombre, m.especie, m.raza,
+               m.peso, m.fecha_nacimiento, d.nombre AS dueno, d.telefono, d.email AS dueno_email
+        FROM mascotas m
+        JOIN duenos d ON m.dueno_id = d.id
+        WHERE m.dueno_id = :dueno_id
+        ORDER BY m.nombre ASC
+    ");
+    $stmt->execute([':dueno_id' => $_SESSION['dueno_id']]);
+} else {
+    $stmt = $pdo->prepare("
+        SELECT m.id, m.dueno_id, m.identificador, m.nombre, m.especie, m.raza,
+               m.peso, m.fecha_nacimiento, d.nombre AS dueno, d.telefono, d.email AS dueno_email
+        FROM mascotas m
+        JOIN duenos d ON m.dueno_id = d.id
+        ORDER BY m.nombre ASC
+    ");
+    $stmt->execute();
+}
 $mascotas = $stmt->fetchAll();
 
 $mensaje       = $_SESSION['mensaje']       ?? '';
@@ -55,6 +68,7 @@ require_once __DIR__ . '/includes/header.php';
                         <th>Peso</th>
                         <th>Dueño</th>
                         <th>Contacto</th>
+                        <th>Email</th>
                         <th class="text-center">Acciones</th>
                     </tr>
                 </thead>
@@ -88,11 +102,13 @@ require_once __DIR__ . '/includes/header.php';
                                 <span class="d-none d-md-inline"><?= e($m['telefono']) ?></span>
                             </a>
                         </td>
+                        <td class="text-muted small"><?= e($m['dueno_email'] ?? '') ?></td>
                         <td class="text-center">
                             <div class="d-flex justify-content-center gap-1">
                                 <a href="historial.php?id=<?= (int)$m['id'] ?>" class="btn btn-sm btn-outline-primary" title="Ver historial">
                                     <i class="bi bi-journal-medical"></i>
                                 </a>
+                                <?php if ($_SESSION['user_rol'] !== 'dueno'): ?>
                                 <button type="button" class="btn btn-sm btn-outline-secondary btn-edit-mascota" title="Editar"
                                     data-id="<?= (int)$m['id'] ?>"
                                     data-identificador="<?= e($m['identificador']) ?>"
@@ -102,6 +118,7 @@ require_once __DIR__ . '/includes/header.php';
                                     data-peso="<?= e($m['peso']) ?>"
                                     data-dueno="<?= e($m['dueno']) ?>"
                                     data-telefono="<?= e($m['telefono']) ?>"
+                                    data-email="<?= e($m['dueno_email'] ?? '') ?>"
                                     data-fecha="<?= e($m['fecha_nacimiento'] ?? '') ?>"
                                     data-bs-toggle="modal" data-bs-target="#editModal">
                                     <i class="bi bi-pencil"></i>
@@ -112,6 +129,7 @@ require_once __DIR__ . '/includes/header.php';
                                     data-bs-toggle="modal" data-bs-target="#deleteModal">
                                     <i class="bi bi-trash"></i>
                                 </button>
+                                <?php endif; ?>
                             </div>
                         </td>
                     </tr>
@@ -136,15 +154,19 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="modal-body px-4 pb-0">
                     <div class="form-section-title mb-3"><i class="bi bi-person-circle"></i>Datos del Dueño</div>
                     <div class="row g-3 mb-4">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label">Nombre del Dueño</label>
                             <input type="text" name="dueno_nombre" id="edit_dueno_nombre" class="form-control" required>
                             <div class="invalid-feedback">Este campo es requerido.</div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label">Teléfono</label>
                             <input type="tel" name="dueno_telefono" id="edit_dueno_telefono" class="form-control" required>
                             <div class="invalid-feedback">Este campo es requerido.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Correo Electrónico</label>
+                            <input type="email" name="dueno_email" id="edit_dueno_email" class="form-control" placeholder="Ej: maria@gmail.com">
                         </div>
                     </div>
                     <div class="form-section-title mb-3"><i class="bi bi-heart-pulse"></i>Datos de la Mascota</div>
@@ -233,6 +255,7 @@ document.querySelectorAll('.btn-edit-mascota').forEach(function(btn) {
         document.getElementById('edit_peso').value              = d.peso;
         document.getElementById('edit_dueno_nombre').value      = d.dueno;
         document.getElementById('edit_dueno_telefono').value    = d.telefono;
+        document.getElementById('edit_dueno_email').value       = d.email || '';
         document.getElementById('edit_fecha_nacimiento').value  = d.fecha;
         document.getElementById('formEditMascota').classList.remove('was-validated');
     });
