@@ -94,7 +94,7 @@ require_once __DIR__ . '/includes/header.php';
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Especie</label>
-                            <select name="especie" class="form-select" required>
+                            <select name="especie" id="selectEspecie" class="form-select" required>
                                 <option value="Perro">🐕 Perro</option>
                                 <option value="Gato">🐈 Gato</option>
                                 <option value="Ave">🐦 Ave</option>
@@ -104,8 +104,9 @@ require_once __DIR__ . '/includes/header.php';
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Raza</label>
-                            <input type="text" name="raza" class="form-control" placeholder="Ej: Labrador" required>
-                            <div class="invalid-feedback">Este campo es requerido.</div>
+                            <select name="raza" id="selectRaza" class="form-select" required>
+                            </select>
+                            <div class="invalid-feedback">Seleccione una raza.</div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Peso (kg)</label>
@@ -139,5 +140,48 @@ require_once __DIR__ . '/includes/header.php';
         </div>
     </div>
 </div>
+
+<script>
+var razasPorEspecie = {
+    Perro: [
+        'Mestizo','Labrador Retriever','Golden Retriever','Pastor Alemán','Bulldog Francés',
+        'Bulldog Inglés','Poodle','Chihuahua','Rottweiler','Beagle','Husky Siberiano',
+        'Shih Tzu','Yorkshire Terrier','Dachshund','Boxer','Doberman','Schnauzer',
+        'Pitbull','Border Collie','Cocker Spaniel','Maltés','Pomerania','Shar Pei','Otro'
+    ],
+    Gato: [
+        'Doméstico pelo corto','Doméstico pelo largo','Siamés','Persa','Maine Coon',
+        'Bengalí','Ragdoll','British Shorthair','Angora','Esfinge','Azul Ruso',
+        'Scottish Fold','Birmano','Abisinio','Otro'
+    ],
+    Ave: [
+        'Loro','Periquito','Canario','Cacatúa','Agapornis (inseparable)','Cotorra',
+        'Ninfa (Cockatiel)','Jilguero','Pájaro del sol','Tucán','Otro'
+    ],
+    Otro: [
+        'Conejo','Hámster','Cobayo (Cuy)','Tortuga','Hurón','Chinchilla',
+        'Iguana','Serpiente','Pez','Otro'
+    ]
+};
+
+function actualizarRazas(especie) {
+    var select = document.getElementById('selectRaza');
+    var razas  = razasPorEspecie[especie] || [];
+    select.innerHTML = '';
+    razas.forEach(function(r) {
+        var opt = document.createElement('option');
+        opt.value = r;
+        opt.textContent = r;
+        select.appendChild(opt);
+    });
+}
+
+document.getElementById('selectEspecie').addEventListener('change', function() {
+    actualizarRazas(this.value);
+});
+
+// Poblar al cargar
+actualizarRazas(document.getElementById('selectEspecie').value);
+</script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
