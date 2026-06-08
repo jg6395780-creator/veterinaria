@@ -34,11 +34,12 @@ $(document).ready(function() {
 
     // ===== DataTable: Caja =====
     if ($('#tablaCaja').length) {
+      var colCount = $('#tablaCaja thead tr th').length;
         $('#tablaCaja').DataTable({
             language: dtLang,
             responsive: true,
             order: [[0, 'desc']],
-            columnDefs: [{ orderable: false, targets: 5 }]
+            columnDefs: colCount > 5 ? [{ orderable: false, targets: colCount - 1 }] : []
         });
     }
 
