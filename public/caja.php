@@ -223,9 +223,9 @@ require_once __DIR__ . '/includes/header.php';
                         </div>
                         <div class="col-12">
                             <label class="form-label">Concepto</label>
-                            <input type="text" name="concepto" class="form-control"
-                                   placeholder="Ej: Consulta general, Vacuna, Insumos..." required>
-                            <div class="invalid-feedback">Ingrese un concepto.</div>
+                            <select name="concepto" id="selectConcepto" class="form-select" required>
+                            </select>
+                            <div class="invalid-feedback">Seleccione un concepto.</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label">Monto</label>
@@ -262,5 +262,54 @@ require_once __DIR__ . '/includes/header.php';
     </div>
 </div>
 <?php endif; ?>
+
+<script>
+var conceptos = {
+    ingreso: [
+        'Consulta general',
+        'Consulta de urgencia',
+        'Vacunación',
+        'Cirugía',
+        'Desparasitación',
+        'Baño y peluquería',
+        'Hospitalización',
+        'Examen de laboratorio',
+        'Radiografía / Ecografía',
+        'Venta de medicamentos',
+        'Venta de alimentos',
+        'Otro'
+    ],
+    egreso: [
+        'Insumos médicos',
+        'Compra de medicamentos',
+        'Compra de alimentos',
+        'Servicios (agua, luz, internet)',
+        'Arriendo / Renta',
+        'Sueldos / Salarios',
+        'Equipos y herramientas',
+        'Mantenimiento',
+        'Publicidad',
+        'Otro'
+    ]
+};
+
+function actualizarConceptos(tipo) {
+    var select = document.getElementById('selectConcepto');
+    var lista  = conceptos[tipo] || [];
+    select.innerHTML = '';
+    lista.forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        select.appendChild(opt);
+    });
+}
+
+var selectTipo = document.querySelector('[name="tipo"]');
+if (selectTipo) {
+    selectTipo.addEventListener('change', function() { actualizarConceptos(this.value); });
+    actualizarConceptos(selectTipo.value);
+}
+</script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
