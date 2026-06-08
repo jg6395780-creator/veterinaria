@@ -40,6 +40,12 @@
             </a>
             <?php endif; ?>
 
+            <?php if ($_SESSION['user_rol'] === 'admin' || $_SESSION['user_rol'] === 'recepcion'): ?>
+            <a href="caja.php" class="sidebar-link <?= basename($_SERVER['PHP_SELF']) === 'caja.php' ? 'active' : '' ?>">
+                <i class="bi bi-cash-stack"></i> Caja
+            </a>
+            <?php endif; ?>
+
             <?php if ($_SESSION['user_rol'] === 'admin'): ?>
             <span class="sidebar-section-label" style="margin-top:0.5rem;">Administración</span>
             <a href="empleados.php" class="sidebar-link <?= basename($_SERVER['PHP_SELF']) === 'empleados.php' ? 'active' : '' ?>">

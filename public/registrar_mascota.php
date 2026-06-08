@@ -49,11 +49,11 @@ require_once __DIR__ . '/includes/header.php';
                         <div class="col-md-4">
                             <label class="form-label">Teléfono (WhatsApp)</label>
                             <div class="input-group">
-                                <span class="input-group-text"><i class="bi bi-whatsapp"></i></span>
+                                <span class="input-group-text fw-semibold">+569</span>
                                 <input type="tel" name="dueno_telefono" class="form-control"
-                                       placeholder="Ej: 5512345678"
-                                       pattern="[0-9]{10,15}" required>
-                                <div class="invalid-feedback">Ingrese un número válido (10-15 dígitos).</div>
+                                       placeholder="12345678"
+                                       pattern="[0-9]{8}" maxlength="8" required>
+                                <div class="invalid-feedback">Ingrese los 8 dígitos restantes.</div>
                             </div>
                         </div>
                         <div class="col-md-4">

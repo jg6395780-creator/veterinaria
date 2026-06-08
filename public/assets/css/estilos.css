@@ -155,6 +155,7 @@ body {
 .kpi-card.kpi-success::before  { background: var(--success); }
 .kpi-card.kpi-warning::before  { background: var(--warning); }
 .kpi-card.kpi-info::before     { background: var(--info); }
+.kpi-card.kpi-danger::before   { background: #ef4444; }
 .kpi-card:hover {
     transform: translateY(-3px);
     box-shadow: 0 10px 30px rgba(0,0,0,0.09);

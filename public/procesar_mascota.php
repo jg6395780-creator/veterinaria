@@ -12,7 +12,7 @@ $pdo    = getDB();
 
 if ($action === 'crear') {
     $dueno_nombre   = trim($_POST['dueno_nombre']   ?? '');
-    $dueno_telefono = trim($_POST['dueno_telefono'] ?? '');
+    $dueno_telefono = '9' . preg_replace('/\D/', '', trim($_POST['dueno_telefono'] ?? ''));
     $dueno_email    = trim($_POST['dueno_email']    ?? '');
     $nombre         = trim($_POST['nombre']         ?? '');
     $especie        = trim($_POST['especie']        ?? '');

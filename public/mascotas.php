@@ -4,6 +4,8 @@ require_once __DIR__ . '/includes/db.php';
 
 $pdo  = getDB();
 
+$razas = $pdo->query("SELECT DISTINCT raza FROM mascotas WHERE raza IS NOT NULL AND raza != '' ORDER BY raza")->fetchAll(PDO::FETCH_COLUMN);
+
 if ($_SESSION['user_rol'] === 'dueno') {
     $stmt = $pdo->prepare("
         SELECT m.id, m.dueno_id, m.identificador, m.nombre, m.especie, m.raza,
@@ -56,6 +58,42 @@ require_once __DIR__ . '/includes/header.php';
 </div>
 <?php endif; ?>
 
+<!-- Filtros -->
+<div class="card card-stat mb-3">
+    <div class="card-body py-3 px-4">
+        <div class="row g-2 align-items-center">
+            <div class="col-auto">
+                <label class="form-label mb-0 text-muted small fw-semibold">ESPECIE:</label>
+            </div>
+            <div class="col-auto">
+                <select id="filtroEspecie" class="form-select form-select-sm">
+                    <option value="">Todas</option>
+                    <option>Perro</option>
+                    <option>Gato</option>
+                    <option>Ave</option>
+                    <option>Otro</option>
+                </select>
+            </div>
+            <div class="col-auto ms-2">
+                <label class="form-label mb-0 text-muted small fw-semibold">RAZA:</label>
+            </div>
+            <div class="col-auto">
+                <select id="filtroRaza" class="form-select form-select-sm">
+                    <option value="">Todas</option>
+                    <?php foreach ($razas as $raza): ?>
+                    <option><?= e($raza) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-auto ms-1">
+                <button id="limpiarFiltros" class="btn btn-sm btn-light px-3">
+                    <i class="bi bi-x-circle me-1"></i>Limpiar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card card-stat">
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -97,7 +135,7 @@ require_once __DIR__ . '/includes/header.php';
                         <td><span class="fw-semibold"><?= e($m['peso']) ?></span> <span class="text-muted small">kg</span></td>
                         <td class="fw-medium"><?= e($m['dueno']) ?></td>
                         <td>
-                            <a href="https://wa.me/52<?= e($m['telefono']) ?>" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1" target="_blank">
+                            <a href="https://wa.me/56<?= e($m['telefono']) ?>" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1" target="_blank">
                                 <i class="bi bi-whatsapp"></i>
                                 <span class="d-none d-md-inline"><?= e($m['telefono']) ?></span>
                             </a>
@@ -161,8 +199,13 @@ require_once __DIR__ . '/includes/header.php';
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Teléfono</label>
-                            <input type="tel" name="dueno_telefono" id="edit_dueno_telefono" class="form-control" required>
-                            <div class="invalid-feedback">Este campo es requerido.</div>
+                            <div class="input-group">
+                                <span class="input-group-text fw-semibold">+569</span>
+                                <input type="tel" name="dueno_telefono" id="edit_dueno_telefono"
+                                       class="form-control" placeholder="12345678"
+                                       pattern="[0-9]{8,9}" required>
+                                <div class="invalid-feedback">Este campo es requerido.</div>
+                            </div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Correo Electrónico</label>
