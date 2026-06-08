@@ -34,9 +34,10 @@ $(document).ready(function() {
 
     // ===== DataTable: Caja =====
     if ($('#tablaCaja').length) {
-      var colCount = $('#tablaCaja thead tr th').length;
+        var colCount = $('#tablaCaja thead tr th').length;
+        var dtLangCaja = $.extend(true, {}, dtLang, { zeroRecords: "Sin movimientos en este período." });
         $('#tablaCaja').DataTable({
-            language: dtLang,
+            language: dtLangCaja,
             responsive: true,
             order: [[0, 'desc']],
             columnDefs: colCount > 5 ? [{ orderable: false, targets: colCount - 1 }] : []

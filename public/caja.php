@@ -188,14 +188,6 @@ require_once __DIR__ . '/includes/header.php';
                         <?php endif; ?>
                     </tr>
                     <?php endforeach; ?>
-                    <?php if (empty($movimientos)): ?>
-                    <tr>
-                        <td colspan="6" class="text-center text-muted py-5">
-                            <i class="bi bi-inbox fs-3 d-block mb-2 opacity-50"></i>
-                            Sin movimientos en este período.
-                        </td>
-                    </tr>
-                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
