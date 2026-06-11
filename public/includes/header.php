@@ -42,7 +42,7 @@
 
             <?php if ($_SESSION['user_rol'] === 'admin' || $_SESSION['user_rol'] === 'recepcion'): ?>
             <a href="caja.php" class="sidebar-link <?= basename($_SERVER['PHP_SELF']) === 'caja.php' ? 'active' : '' ?>">
-                <i class="bi bi-cash-stack"></i> Caja
+                <i class="bi bi-cash-stack"></i> Finanzas
             </a>
             <?php endif; ?>
 

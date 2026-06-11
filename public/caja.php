@@ -46,7 +46,7 @@ require_once __DIR__ . '/includes/header.php';
 
 <div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-3">
     <div>
-        <h3>Caja</h3>
+        <h3>Finanzas</h3>
         <p>Control de ingresos y egresos del consultorio.</p>
     </div>
     <?php if ($_SESSION['user_rol'] !== 'dueno'): ?>
