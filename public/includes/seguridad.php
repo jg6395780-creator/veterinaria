@@ -11,7 +11,7 @@ function e(string $string): string {
 
 if (!isset($_SESSION['user_id'])) {
     $current_page = basename($_SERVER['PHP_SELF']);
-    if ($current_page !== 'login.php') {
+    if (!in_array($current_page, ['login.php', 'recuperar_contrasena.php', 'restablecer_contrasena.php', 'restablecer_contrasena_dueno.php'], true)) {
         header("Location: login.php");
         exit;
     }

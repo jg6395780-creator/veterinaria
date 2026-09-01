@@ -17,11 +17,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = "Por favor, ingrese usuario y contraseña.";
     } else {
         $pdo = getDB();
-        $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE username = :username AND activo = 1");
-        $stmt->execute([':username' => $username]);
-        $user = $stmt->fetch();
+        // El personal puede ingresar con su usuario asignado o con su nombre completo.
+        $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE (username = :username OR nombre_completo = :nombre_completo) AND activo = 1");
+        $stmt->execute([':username' => $username, ':nombre_completo' => $username]);
+        $user = null;
+        foreach ($stmt->fetchAll() as $usuario) {
+            if (password_verify($password, $usuario['password'])) {
+                $user = $usuario;
+                break;
+            }
+        }
 
-        if ($user && password_verify($password, $user['password'])) {
+        if ($user) {
             session_regenerate_id(true);
             $_SESSION['user_id']   = $user['id'];
             $_SESSION['user_name'] = $user['nombre_completo'];
@@ -29,20 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header("Location: index.php");
             exit;
         } else {
-            // Intentar autenticación como dueño (por email)
-            $stmt2 = $pdo->prepare("SELECT * FROM duenos WHERE email = :email AND password IS NOT NULL");
-            $stmt2->execute([':email' => $username]);
-            $dueno = $stmt2->fetch();
-            if ($dueno && password_verify($password, $dueno['password'])) {
-                session_regenerate_id(true);
-                $_SESSION['user_id']   = $dueno['id'];
-                $_SESSION['user_name'] = $dueno['nombre'];
-                $_SESSION['user_rol']  = 'dueno';
-                $_SESSION['dueno_id']  = $dueno['id'];
-                header("Location: index.php");
-                exit;
-            }
-            $error = "Usuario o contraseña incorrectos.";
+            $error = "Nombre, usuario o contraseña incorrectos.";
         }
     }
 }
@@ -145,6 +139,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             background: #fff;
             outline: none;
         }
+        .input-group .password-input { border-radius: 0; }
+        .password-toggle {
+            border: 1.5px solid #e2e8f0;
+            border-left: none;
+            border-radius: 0 9px 9px 0;
+            background: #fafafa;
+            color: #64748b;
+        }
         .input-group:focus-within .input-group-text { border-color: #3b82f6; }
         .btn-login {
             background: linear-gradient(135deg, #3b82f6, #1d4ed8);
@@ -207,23 +209,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <form method="POST" action="login.php" autocomplete="off">
                     <div class="form-group">
-                        <label class="form-label">Usuario</label>
+                        <label class="form-label">Nombre de empleado o usuario</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-person-fill"></i></span>
-                            <input type="text" name="username" class="form-control" placeholder="Ingrese su usuario" required autofocus>
+                            <input type="text" name="username" class="form-control" placeholder="Usuario o nombre del personal" required autofocus>
                         </div>
                     </div>
                     <div class="form-group mb-4">
                         <label class="form-label">Contraseña</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
-                            <input type="password" name="password" class="form-control" placeholder="Ingrese su contraseña" required>
+                            <input type="password" name="password" id="password" class="form-control password-input" placeholder="Ingrese su contraseña" required>
+                            <button class="btn password-toggle" type="button" id="togglePassword" aria-label="Mostrar contraseña" title="Mostrar contraseña"><i class="bi bi-eye"></i></button>
                         </div>
                     </div>
                     <button type="submit" class="btn btn-login w-100">
                         <i class="bi bi-box-arrow-in-right me-2"></i>Iniciar Sesión
                     </button>
                 </form>
+                <div class="text-center mt-3"><a href="recuperar_contrasena.php" class="btn btn-link btn-sm text-decoration-none"><i class="bi bi-key me-1"></i>Olvidé mi contraseña</a></div>
             </div>
 
             <div class="login-footer">
@@ -233,5 +237,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('togglePassword').addEventListener('click', function () {
+            const password = document.getElementById('password');
+            const visible = password.type === 'text';
+            password.type = visible ? 'password' : 'text';
+            this.setAttribute('aria-label', visible ? 'Mostrar contraseña' : 'Ocultar contraseña');
+            this.setAttribute('title', visible ? 'Mostrar contraseña' : 'Ocultar contraseña');
+            this.querySelector('i').className = visible ? 'bi bi-eye' : 'bi bi-eye-slash';
+        });
+    </script>
 </body>
 </html>

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/includes/seguridad.php';
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/rut.php';
 
 $pdo  = getDB();
 
@@ -9,7 +10,8 @@ $razas = $pdo->query("SELECT DISTINCT raza FROM mascotas WHERE raza IS NOT NULL 
 if ($_SESSION['user_rol'] === 'dueno') {
     $stmt = $pdo->prepare("
         SELECT m.id, m.dueno_id, m.identificador, m.nombre, m.especie, m.raza,
-               m.peso, m.fecha_nacimiento, d.nombre AS dueno, d.telefono, d.email AS dueno_email
+               m.peso, m.fecha_nacimiento, d.nombre AS dueno, d.rut AS dueno_rut,
+               d.telefono, d.email AS dueno_email
         FROM mascotas m
         JOIN duenos d ON m.dueno_id = d.id
         WHERE m.dueno_id = :dueno_id
@@ -19,7 +21,8 @@ if ($_SESSION['user_rol'] === 'dueno') {
 } else {
     $stmt = $pdo->prepare("
         SELECT m.id, m.dueno_id, m.identificador, m.nombre, m.especie, m.raza,
-               m.peso, m.fecha_nacimiento, d.nombre AS dueno, d.telefono, d.email AS dueno_email
+               m.peso, m.fecha_nacimiento, d.nombre AS dueno, d.rut AS dueno_rut,
+               d.telefono, d.email AS dueno_email
         FROM mascotas m
         JOIN duenos d ON m.dueno_id = d.id
         ORDER BY m.nombre ASC
@@ -105,6 +108,7 @@ require_once __DIR__ . '/includes/header.php';
                         <th>Especie / Raza</th>
                         <th>Peso</th>
                         <th>Dueño</th>
+                        <th>RUT</th>
                         <th>Contacto</th>
                         <th>Email</th>
                         <th class="text-center">Acciones</th>
@@ -135,6 +139,13 @@ require_once __DIR__ . '/includes/header.php';
                         <td><span class="fw-semibold"><?= e($m['peso']) ?></span> <span class="text-muted small">kg</span></td>
                         <td class="fw-medium"><?= e($m['dueno']) ?></td>
                         <td>
+                            <?php if (!empty($m['dueno_rut'])): ?>
+                                <code class="bg-light text-dark border px-2 py-1 rounded"><?= e(formatearRut($m['dueno_rut'])) ?></code>
+                            <?php else: ?>
+                                <span class="text-muted small">Sin RUT</span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
                             <a href="https://wa.me/56<?= e($m['telefono']) ?>" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1" target="_blank">
                                 <i class="bi bi-whatsapp"></i>
                                 <span class="d-none d-md-inline"><?= e($m['telefono']) ?></span>
@@ -155,6 +166,7 @@ require_once __DIR__ . '/includes/header.php';
                                     data-raza="<?= e($m['raza']) ?>"
                                     data-peso="<?= e($m['peso']) ?>"
                                     data-dueno="<?= e($m['dueno']) ?>"
+                                    data-rut="<?= e($m['dueno_rut'] ?? '') ?>"
                                     data-telefono="<?= e($m['telefono']) ?>"
                                     data-email="<?= e($m['dueno_email'] ?? '') ?>"
                                     data-fecha="<?= e($m['fecha_nacimiento'] ?? '') ?>"
@@ -192,12 +204,18 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="modal-body px-4 pb-0">
                     <div class="form-section-title mb-3"><i class="bi bi-person-circle"></i>Datos del Dueño</div>
                     <div class="row g-3 mb-4">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="form-label">Nombre del Dueño</label>
                             <input type="text" name="dueno_nombre" id="edit_dueno_nombre" class="form-control" required>
                             <div class="invalid-feedback">Este campo es requerido.</div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <label class="form-label">RUT</label>
+                            <input type="text" name="dueno_rut" id="edit_dueno_rut" class="form-control rut-input"
+                                   placeholder="12.345.678-5" maxlength="12" required>
+                            <div class="invalid-feedback">Ingrese un RUT válido.</div>
+                        </div>
+                        <div class="col-md-3">
                             <label class="form-label">Teléfono</label>
                             <div class="input-group">
                                 <span class="input-group-text fw-semibold">+569</span>
@@ -207,7 +225,7 @@ require_once __DIR__ . '/includes/header.php';
                                 <div class="invalid-feedback">Este campo es requerido.</div>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="form-label">Correo Electrónico</label>
                             <input type="email" name="dueno_email" id="edit_dueno_email" class="form-control" placeholder="Ej: maria@gmail.com">
                         </div>
@@ -216,7 +234,8 @@ require_once __DIR__ . '/includes/header.php';
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label">Identificador</label>
-                            <input type="text" name="identificador" id="edit_identificador" class="form-control" required>
+                            <input type="text" name="identificador" id="edit_identificador" class="form-control bg-light" readonly required>
+                            <div class="form-text">Se conserva o cambia automáticamente según la especie.</div>
                             <div class="invalid-feedback">Este campo es requerido.</div>
                         </div>
                         <div class="col-md-4">
@@ -286,6 +305,20 @@ require_once __DIR__ . '/includes/header.php';
 </div>
 
 <script>
+function formatearRut(valor) {
+    var limpio = valor.toUpperCase().replace(/[^0-9K]/g, '').slice(0, 9);
+    if (limpio.length < 2) return limpio;
+    var dv = limpio.slice(-1);
+    var cuerpo = limpio.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return cuerpo + '-' + dv;
+}
+
+document.querySelectorAll('.rut-input').forEach(function(input) {
+    input.addEventListener('input', function() {
+        this.value = formatearRut(this.value);
+    });
+});
+
 // Poblar modal de edición
 document.querySelectorAll('.btn-edit-mascota').forEach(function(btn) {
     btn.addEventListener('click', function() {
@@ -297,6 +330,7 @@ document.querySelectorAll('.btn-edit-mascota').forEach(function(btn) {
         document.getElementById('edit_raza').value              = d.raza;
         document.getElementById('edit_peso').value              = d.peso;
         document.getElementById('edit_dueno_nombre').value      = d.dueno;
+        document.getElementById('edit_dueno_rut').value         = formatearRut(d.rut || '');
         document.getElementById('edit_dueno_telefono').value    = d.telefono;
         document.getElementById('edit_dueno_email').value       = d.email || '';
         document.getElementById('edit_fecha_nacimiento').value  = d.fecha;

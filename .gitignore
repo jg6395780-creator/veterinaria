@@ -13,3 +13,27 @@ desktop.ini
 # Dependencias PHP (si usas Composer en el futuro)
 /vendor/
 composer.lock
+
+# Credenciales locales para correo SMTP
+config/mail_credenciales.php
+
+# Credenciales y configuración privada local
+config/db_credenciales.php
+config/webpay.php
+.env
+.env.*
+!.env.example
+
+# Datos privados y archivos generados
+/storage/
+/tmp/
+/entregables/
+/output/
+
+# Respaldos locales
+*.sql.gz
+*.zip
+
+# Editores
+.idea/
+.vscode/

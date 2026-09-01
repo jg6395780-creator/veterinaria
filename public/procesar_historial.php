@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/includes/seguridad.php';
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/modulos_clinica.php';
 
 if (!in_array($_SESSION['user_rol'], ['admin', 'veterinario'])) {
     header("Location: index.php");
@@ -15,8 +16,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $action     = trim($_POST['action']     ?? '');
 $mascota_id = (int)($_POST['mascota_id'] ?? 0);
 $pdo        = getDB();
+asegurarModulosClinica($pdo);
 
 $redirect = $mascota_id ? "historial.php?id=$mascota_id" : "mascotas.php";
+
+function esVeterinarioActivo(PDO $pdo, string $nombre): bool {
+    $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE nombre_completo = :nombre AND rol = 'veterinario' AND activo = 1 LIMIT 1");
+    $stmt->execute([':nombre' => $nombre]);
+    return (bool)$stmt->fetchColumn();
+}
 
 switch ($action) {
 
@@ -30,11 +38,16 @@ switch ($action) {
             $_SESSION['mensaje_error'] = "Complete todos los campos de la consulta.";
             header("Location: $redirect"); exit;
         }
+        if (!esVeterinarioActivo($pdo, $vet)) {
+            $_SESSION['mensaje_error'] = "Seleccione un veterinario activo.";
+            header("Location: $redirect"); exit;
+        }
         try {
             $pdo->prepare("
                 INSERT INTO historial_clinico (mascota_id, fecha_visita, diagnostico, tratamiento, veterinario)
                 VALUES (:mid, :fv, :diag, :trat, :vet)
             ")->execute([':mid'=>$mascota_id, ':fv'=>$fecha, ':diag'=>$diag, ':trat'=>$trat, ':vet'=>$vet]);
+            notificarDuenoMascota($pdo, $mascota_id, 'Nueva consulta registrada', 'Diagnóstico: ' . $diag . '. Tratamiento: ' . $trat . '.', 'consulta');
             $_SESSION['mensaje'] = "Consulta registrada correctamente.";
         } catch (PDOException $e) {
             error_log($e->getMessage());
@@ -51,6 +64,10 @@ switch ($action) {
 
         if (!$id || !$fecha || !$diag || !$trat || !$vet) {
             $_SESSION['mensaje_error'] = "Complete todos los campos.";
+            header("Location: $redirect"); exit;
+        }
+        if (!esVeterinarioActivo($pdo, $vet)) {
+            $_SESSION['mensaje_error'] = "Seleccione un veterinario activo.";
             header("Location: $redirect"); exit;
         }
         try {
@@ -97,6 +114,7 @@ switch ($action) {
                 ':fa'     => $fecha,
                 ':fp'     => $_POST['fecha_proxima_dosis'] ?: null,
             ]);
+            notificarDuenoMascota($pdo, $mascota_id, 'Nueva vacuna registrada', $nombre . ' aplicada el ' . date('d/m/Y', strtotime($fecha)) . '.', 'vacuna');
             $_SESSION['mensaje'] = "Vacuna registrada correctamente.";
         } catch (PDOException $e) {
             error_log($e->getMessage());

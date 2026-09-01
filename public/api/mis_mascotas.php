@@ -6,11 +6,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit();
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../config/db_credenciales.php';
+require_once __DIR__ . '/../includes/rut.php';
 
-$dueno_id = (int)($_GET['dueno_id'] ?? 0);
+$rut = normalizarRut(trim($_GET['rut'] ?? ''));
 
-if (!$dueno_id) {
-    echo json_encode(['success' => false, 'message' => 'ID inválido']);
+if (!validarRut($rut)) {
+    echo json_encode(['success' => false, 'message' => 'RUT inválido']);
     exit;
 }
 
@@ -20,13 +21,13 @@ try {
 
     $stmt = $pdo->prepare("
         SELECT m.id, m.identificador, m.nombre, m.especie, m.raza,
-               m.peso, m.fecha_nacimiento, d.nombre AS dueno, d.telefono
+               m.peso, m.fecha_nacimiento, m.foto_url, d.nombre AS dueno, d.telefono
         FROM mascotas m
         JOIN duenos d ON m.dueno_id = d.id
-        WHERE m.dueno_id = :dueno_id
+        WHERE d.rut = :rut
         ORDER BY m.nombre ASC
     ");
-    $stmt->execute([':dueno_id' => $dueno_id]);
+    $stmt->execute([':rut' => $rut]);
     $mascotas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode(['success' => true, 'mascotas' => $mascotas]);

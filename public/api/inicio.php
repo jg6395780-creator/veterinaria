@@ -1,0 +1,10 @@
+<?php
+header('Access-Control-Allow-Origin: *');header('Access-Control-Allow-Methods: GET, OPTIONS');header('Access-Control-Allow-Headers: Content-Type, Authorization');header('Content-Type: application/json');if($_SERVER['REQUEST_METHOD']==='OPTIONS'){exit;}
+require_once __DIR__.'/../includes/db.php';require_once __DIR__.'/../includes/rut.php';require_once __DIR__.'/../includes/modulos_clinica.php';require_once __DIR__.'/../includes/recordatorios.php';
+try{$pdo=getDB();generarRecordatorios($pdo);$rut=normalizarRut(trim((string)($_GET['rut']??'')));$q=$pdo->prepare('SELECT id,nombre,telefono,email FROM duenos WHERE rut=:rut');$q->execute([':rut'=>$rut]);$dueno=$q->fetch();if(!$dueno){http_response_code(404);echo json_encode(['success'=>false,'message'=>'Dueño no encontrado']);exit;}$duenoId=(int)$dueno['id'];
+ $q=$pdo->prepare("SELECT c.id,c.fecha_hora,c.motivo,c.estado,m.nombre mascota,u.nombre_completo veterinario FROM citas c JOIN mascotas m ON m.id=c.mascota_id LEFT JOIN usuarios u ON u.id=c.veterinario_id WHERE c.dueno_id=:d AND c.fecha_hora>=NOW() AND c.estado IN ('solicitada','confirmada') ORDER BY c.fecha_hora LIMIT 5");$q->execute([':d'=>$duenoId]);$citas=$q->fetchAll();
+ $q=$pdo->prepare('SELECT v.nombre_vacuna,v.fecha_proxima_dosis,m.nombre mascota FROM vacunas v JOIN mascotas m ON m.id=v.mascota_id WHERE m.dueno_id=:d AND v.fecha_proxima_dosis>=CURDATE() ORDER BY v.fecha_proxima_dosis LIMIT 8');$q->execute([':d'=>$duenoId]);$vacunas=$q->fetchAll();
+ $q=$pdo->prepare('SELECT COUNT(*) FROM notificaciones WHERE dueno_id=:d AND leida=0');$q->execute([':d'=>$duenoId]);$noLeidas=(int)$q->fetchColumn();
+ $config=[];foreach($pdo->query('SELECT clave,valor FROM configuracion_clinica')->fetchAll() as $r)$config[$r['clave']]=$r['valor'];
+ echo json_encode(['success'=>true,'dueno'=>$dueno,'proximas_citas'=>$citas,'proximas_vacunas'=>$vacunas,'notificaciones_no_leidas'=>$noLeidas,'clinica'=>$config]);
+}catch(Throwable $e){error_log('API inicio: '.$e->getMessage());http_response_code(500);echo json_encode(['success'=>false,'message'=>'Error del servidor']);}

@@ -8,21 +8,26 @@ if ($_SESSION['user_rol'] !== 'admin') {
 }
 
 $pdo     = getDB();
+$columnasUsuarios = $pdo->query('SHOW COLUMNS FROM usuarios')->fetchAll(PDO::FETCH_COLUMN);
+if (!in_array('email', $columnasUsuarios, true)) {
+    $pdo->exec('ALTER TABLE usuarios ADD email VARCHAR(150) NULL UNIQUE AFTER nombre_completo');
+}
 $mensaje = $_SESSION['mensaje_empleado'] ?? '';
 unset($_SESSION['mensaje_empleado']);
 
 // Crear nuevo empleado (formulario en modal)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'crear') {
     $nombre   = trim($_POST['nombre_completo'] ?? '');
+    $email    = trim($_POST['email'] ?? '');
     $username = trim($_POST['username']        ?? '');
     $password = $_POST['password']             ?? '';
     $rol      = $_POST['rol']                  ?? 'recepcion';
 
-    if ($nombre && $username && $password) {
+    if ($nombre && $email && filter_var($email, FILTER_VALIDATE_EMAIL) && $username && $password) {
         try {
             $hash = password_hash($password, PASSWORD_DEFAULT);
-            $pdo->prepare("INSERT INTO usuarios (username, password, nombre_completo, rol) VALUES (:u, :p, :n, :r)")
-                ->execute([':u'=>$username, ':p'=>$hash, ':n'=>$nombre, ':r'=>$rol]);
+            $pdo->prepare("INSERT INTO usuarios (username, password, nombre_completo, email, rol) VALUES (:u, :p, :n, :e, :r)")
+                ->execute([':u'=>$username, ':p'=>$hash, ':n'=>$nombre, ':e'=>$email, ':r'=>$rol]);
             $mensaje = 'empleado_creado';
         } catch (PDOException $e) {
             $mensaje = 'error_usuario_existe';
@@ -72,6 +77,7 @@ if (isset($alertas[$mensaje])): [$tipo, $txt] = $alertas[$mensaje]; ?>
                         <th class="ps-4">ID</th>
                         <th>Nombre Completo</th>
                         <th>Usuario</th>
+                        <th>Correo</th>
                         <th>Rol</th>
                         <th>Estado</th>
                         <th class="text-center">Acciones</th>
@@ -105,6 +111,7 @@ if (isset($alertas[$mensaje])): [$tipo, $txt] = $alertas[$mensaje]; ?>
                             </div>
                         </td>
                         <td><code class="bg-light px-2 py-1 rounded text-dark"><?= e($emp['username']) ?></code></td>
+                        <td class="text-muted small"><?= e($emp['email'] ?? 'Sin correo') ?></td>
                         <td>
                             <span class="badge bg-<?= $rc[0] ?> bg-opacity-10 text-<?= $rc[0] ?> p-2 rounded-pill">
                                 <i class="bi bi-<?= $rc[1] ?> me-1"></i><?= ucfirst($emp['rol']) ?>
@@ -123,6 +130,7 @@ if (isset($alertas[$mensaje])): [$tipo, $txt] = $alertas[$mensaje]; ?>
                                 <button type="button" class="btn btn-sm btn-outline-secondary btn-edit-emp" title="Editar"
                                     data-id="<?= (int)$emp['id'] ?>"
                                     data-nombre="<?= e($emp['nombre_completo']) ?>"
+                                    data-email="<?= e($emp['email'] ?? '') ?>"
                                     data-rol="<?= e($emp['rol']) ?>"
                                     data-bs-toggle="modal" data-bs-target="#modalEditEmpleado">
                                     <i class="bi bi-pencil"></i>
@@ -177,6 +185,10 @@ if (isset($alertas[$mensaje])): [$tipo, $txt] = $alertas[$mensaje]; ?>
                         <div class="invalid-feedback">Este campo es requerido.</div>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">Correo electrónico</label>
+                        <input type="email" name="email" class="form-control" placeholder="Ej: juan@correo.com" required>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Contraseña</label>
                         <input type="password" name="password" class="form-control" placeholder="Mínimo 6 caracteres" minlength="6" required>
                         <div class="invalid-feedback">Ingrese una contraseña de al menos 6 caracteres.</div>
@@ -215,6 +227,10 @@ if (isset($alertas[$mensaje])): [$tipo, $txt] = $alertas[$mensaje]; ?>
                         <label class="form-label">Nombre Completo</label>
                         <input type="text" name="nombre_completo" id="ee_nombre" class="form-control" required>
                         <div class="invalid-feedback">Este campo es requerido.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Correo electrónico</label>
+                        <input type="email" name="email" id="ee_email" class="form-control" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Rol en el Sistema</label>
@@ -267,6 +283,7 @@ document.querySelectorAll('.btn-edit-emp').forEach(function(btn) {
     btn.addEventListener('click', function() {
         document.getElementById('ee_id').value     = this.dataset.id;
         document.getElementById('ee_nombre').value = this.dataset.nombre;
+        document.getElementById('ee_email').value  = this.dataset.email;
         document.getElementById('ee_rol').value    = this.dataset.rol;
         document.getElementById('formEditEmp').classList.remove('was-validated');
     });

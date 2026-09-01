@@ -1,13 +1,112 @@
 <?php
 require_once __DIR__ . '/includes/seguridad.php';
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/documentos_clinicos.php';
 
-if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
-    header("Location: mascotas.php");
+$pdo = getDB();
+
+if (!isset($_GET['id'])) {
+    $stmtPacientes = $pdo->query("SELECT m.id, m.identificador, m.nombre, m.especie, m.raza,
+            d.nombre AS dueno,
+            COUNT(DISTINCT h.id) AS total_consultas,
+            MAX(h.fecha_visita) AS ultima_consulta,
+            COUNT(DISTINCT v.id) AS total_vacunas
+        FROM mascotas m
+        INNER JOIN duenos d ON d.id = m.dueno_id
+        LEFT JOIN historial_clinico h ON h.mascota_id = m.id
+        LEFT JOIN vacunas v ON v.mascota_id = m.id
+        GROUP BY m.id, m.identificador, m.nombre, m.especie, m.raza, d.nombre
+        ORDER BY m.nombre ASC");
+    $pacientes = $stmtPacientes->fetchAll();
+    $pageTitle = 'Historial Clínico - VetClinic Pro';
+    require_once __DIR__ . '/includes/header.php';
+    ?>
+
+    <div class="page-header">
+        <h3><i class="bi bi-journal-medical text-primary me-2"></i>Historial Clínico</h3>
+        <p>Selecciona una mascota para revisar o actualizar su expediente clínico.</p>
+    </div>
+
+    <?php if (!empty($_SESSION['mensaje_error'])): ?>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i><?= e($_SESSION['mensaje_error']) ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php unset($_SESSION['mensaje_error']); endif; ?>
+
+    <div class="card card-stat">
+        <div class="card-header bg-white border-0 pt-4 px-4 pb-2 d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <h6 class="fw-bold text-dark mb-1">Pacientes registrados</h6>
+                <small class="text-muted"><?= count($pacientes) ?> mascotas disponibles</small>
+            </div>
+            <div class="input-group" style="max-width:320px;">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="search" id="buscarPacienteHistorial" class="form-control" placeholder="Buscar mascota, dueño o ficha">
+            </div>
+        </div>
+        <div class="card-body px-4 pb-4">
+            <?php if (!$pacientes): ?>
+                <div class="empty-state">
+                    <i class="bi bi-clipboard2-x"></i>
+                    <p>No hay mascotas registradas.</p>
+                </div>
+            <?php else: ?>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="tablaPacientesHistorial">
+                    <thead>
+                        <tr><th>Paciente</th><th>Ficha</th><th>Dueño</th><th>Consultas</th><th>Vacunas</th><th>Última consulta</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($pacientes as $paciente): ?>
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="avatar bg-primary bg-opacity-10 text-primary" style="width:36px;height:36px;border-radius:10px;">
+                                        <i class="bi bi-heart-pulse-fill"></i>
+                                    </span>
+                                    <div><strong><?= e($paciente['nombre']) ?></strong><div class="small text-muted"><?= e($paciente['especie']) ?> · <?= e($paciente['raza'] ?: 'Sin raza') ?></div></div>
+                                </div>
+                            </td>
+                            <td><?= e($paciente['identificador']) ?></td>
+                            <td><?= e($paciente['dueno']) ?></td>
+                            <td><span class="badge bg-primary bg-opacity-10 text-primary"><?= (int)$paciente['total_consultas'] ?></span></td>
+                            <td><span class="badge bg-success bg-opacity-10 text-success"><?= (int)$paciente['total_vacunas'] ?></span></td>
+                            <td><?= $paciente['ultima_consulta'] ? e(date('d/m/Y', strtotime($paciente['ultima_consulta']))) : '<span class="text-muted">Sin consultas</span>' ?></td>
+                            <td class="text-end">
+                                <a href="historial.php?id=<?= (int)$paciente['id'] ?>" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-folder2-open me-1"></i>Ver historial
+                                </a>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <script>
+    document.getElementById('buscarPacienteHistorial')?.addEventListener('input', function () {
+        const texto = this.value.toLowerCase().trim();
+        document.querySelectorAll('#tablaPacientesHistorial tbody tr').forEach((fila) => {
+            fila.classList.toggle('d-none', !fila.textContent.toLowerCase().includes(texto));
+        });
+    });
+    </script>
+
+    <?php
+    require_once __DIR__ . '/includes/footer.php';
     exit;
 }
 
-$pdo        = getDB();
+if (!is_numeric($_GET['id']) || (int)$_GET['id'] <= 0) {
+    $_SESSION['mensaje_error'] = 'La mascota seleccionada no es válida.';
+    header('Location: historial.php');
+    exit;
+}
+
 $id_mascota = (int)$_GET['id'];
 
 $stmtMascota = $pdo->prepare("
@@ -20,7 +119,8 @@ $stmtMascota->execute([':id' => $id_mascota]);
 $mascota = $stmtMascota->fetch();
 
 if (!$mascota) {
-    header("Location: mascotas.php");
+    $_SESSION['mensaje_error'] = 'No se encontró la mascota seleccionada.';
+    header("Location: historial.php");
     exit;
 }
 
@@ -32,6 +132,20 @@ $stmtVac = $pdo->prepare("SELECT * FROM vacunas WHERE mascota_id=:id ORDER BY fe
 $stmtVac->execute([':id' => $id_mascota]);
 $vacunas = $stmtVac->fetchAll();
 
+asegurarTablaDocumentosClinicos($pdo);
+$stmtDocumentos = $pdo->prepare("SELECT dc.*, u.nombre_completo AS autor
+    FROM documentos_clinicos dc
+    LEFT JOIN usuarios u ON u.id = dc.subido_por
+    WHERE dc.mascota_id = :id
+    ORDER BY dc.fecha_subida DESC");
+$stmtDocumentos->execute([':id' => $id_mascota]);
+$documentos = $stmtDocumentos->fetchAll();
+$tiposDocumento = tiposDocumentoClinico();
+
+if (empty($_SESSION['csrf_documento'])) {
+    $_SESSION['csrf_documento'] = bin2hex(random_bytes(32));
+}
+
 $iconoEspecie = ['Perro'=>'bi-emoji-smile-fill', 'Gato'=>'bi-emoji-heart-eyes-fill', 'Ave'=>'bi-feather'];
 $icono = $iconoEspecie[$mascota['especie']] ?? 'bi-heart-pulse-fill';
 
@@ -40,6 +154,7 @@ $mensaje_error = $_SESSION['mensaje_error'] ?? '';
 unset($_SESSION['mensaje'], $_SESSION['mensaje_error']);
 
 $puedeEditar = in_array($_SESSION['user_rol'], ['admin', 'veterinario']);
+$veterinarios_lista = $pdo->query("SELECT nombre_completo FROM usuarios WHERE rol = 'veterinario' AND activo = 1 ORDER BY nombre_completo")->fetchAll();
 
 require_once __DIR__ . '/includes/header.php';
 ?>
@@ -169,7 +284,7 @@ require_once __DIR__ . '/includes/header.php';
 
     <!-- ===== COLUMNA DERECHA ===== -->
     <div class="col-md-8 col-lg-9">
-        <div class="card card-stat">
+        <div class="card card-stat mb-4">
             <div class="card-header bg-white border-0 pt-4 px-4 pb-2 d-flex justify-content-between align-items-center">
                 <h6 class="fw-bold text-dark mb-0">
                     <i class="bi bi-journal-medical text-primary me-2"></i>Historial Clínico
@@ -235,11 +350,100 @@ require_once __DIR__ . '/includes/header.php';
                 <?php endif; ?>
             </div>
         </div>
+
+        <div class="card card-stat">
+            <div class="card-header bg-white border-0 pt-4 px-4 pb-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <h6 class="fw-bold text-dark mb-0">
+                    <i class="bi bi-file-earmark-medical text-info me-2"></i>Documentos clínicos
+                    <span class="badge bg-info bg-opacity-10 text-info ms-2 px-3"><?= count($documentos) ?></span>
+                </h6>
+                <?php if ($puedeEditar): ?>
+                <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#modalNuevoDocumento">
+                    <i class="bi bi-cloud-arrow-up me-1"></i>Agregar documento
+                </button>
+                <?php endif; ?>
+            </div>
+            <div class="card-body px-4 pb-4">
+                <?php if (!$documentos): ?>
+                <div class="empty-state py-4">
+                    <i class="bi bi-file-earmark-x"></i>
+                    <p>Sin recetas, exámenes o imágenes registradas.</p>
+                </div>
+                <?php else: ?>
+                <div class="row g-3">
+                    <?php foreach ($documentos as $documento):
+                        $esPdf = $documento['mime_type'] === 'application/pdf';
+                    ?>
+                    <div class="col-12 col-lg-6">
+                        <a href="api/ver_documento.php?token=<?= e($documento['token_descarga']) ?>" target="_blank"
+                           class="documento-clinico-card text-decoration-none">
+                            <span class="documento-clinico-icon <?= $esPdf ? 'documento-pdf' : 'documento-imagen' ?>">
+                                <i class="bi <?= $esPdf ? 'bi-file-earmark-pdf-fill' : 'bi-file-earmark-image-fill' ?>"></i>
+                            </span>
+                            <span class="flex-grow-1 overflow-hidden">
+                                <strong class="d-block text-dark text-truncate"><?= e($documento['titulo']) ?></strong>
+                                <small class="d-block text-muted"><?= e($tiposDocumento[$documento['tipo']] ?? 'Documento clínico') ?> · <?= e(date('d/m/Y', strtotime($documento['fecha_subida']))) ?></small>
+                                <?php if (!empty($documento['descripcion'])): ?>
+                                <small class="d-block text-muted text-truncate mt-1"><?= e($documento['descripcion']) ?></small>
+                                <?php endif; ?>
+                            </span>
+                            <i class="bi bi-box-arrow-up-right text-muted"></i>
+                        </a>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
     </div>
 
 </div>
 
 <?php if ($puedeEditar): ?>
+
+<!-- ===== MODAL NUEVO DOCUMENTO ===== -->
+<div class="modal fade" id="modalNuevoDocumento" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold"><i class="bi bi-cloud-arrow-up text-info me-2"></i>Agregar documento clínico</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="procesar_documento.php" enctype="multipart/form-data" novalidate>
+                <input type="hidden" name="mascota_id" value="<?= $id_mascota ?>">
+                <input type="hidden" name="csrf_documento" value="<?= e($_SESSION['csrf_documento']) ?>">
+                <div class="modal-body px-4">
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de documento</label>
+                        <select name="tipo" class="form-select" required>
+                            <option value="">— Seleccione —</option>
+                            <?php foreach ($tiposDocumento as $valor => $etiqueta): ?>
+                            <option value="<?= e($valor) ?>"><?= e($etiqueta) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Título</label>
+                        <input type="text" name="titulo" class="form-control" maxlength="180" placeholder="Ej: Radiografía de tórax" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descripción <span class="text-muted fw-normal">(opcional)</span></label>
+                        <textarea name="descripcion" class="form-control" rows="2" maxlength="500" placeholder="Observaciones para el dueño..."></textarea>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Archivo</label>
+                        <input type="file" name="archivo" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" required>
+                        <div class="form-text">PDF, JPG, PNG o WEBP. Tamaño máximo: 15 MB.</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 px-4 pb-4 pt-2">
+                    <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-info text-white px-4"><i class="bi bi-upload me-1"></i>Subir documento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <!-- ===== MODAL NUEVA CONSULTA ===== -->
 <div class="modal fade" id="modalNuevaConsulta" tabindex="-1" aria-hidden="true">
@@ -261,8 +465,19 @@ require_once __DIR__ . '/includes/header.php';
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Veterinario</label>
-                            <input type="text" name="veterinario" class="form-control" value="<?= e($_SESSION['user_name']) ?>" required>
-                            <div class="invalid-feedback">Este campo es requerido.</div>
+                            <select name="veterinario" class="form-select" required>
+                                <option value="">— Seleccione veterinario —</option>
+                                <?php foreach ($veterinarios_lista as $v): ?>
+                                <option value="<?= e($v['nombre_completo']) ?>"
+                                    <?= $_SESSION['user_rol'] === 'veterinario' && $_SESSION['user_name'] === $v['nombre_completo'] ? 'selected' : '' ?>>
+                                    <?= e($v['nombre_completo']) ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="invalid-feedback">Seleccione un veterinario.</div>
+                            <?php if (!$veterinarios_lista): ?>
+                            <div class="form-text text-danger">Primero debe crear un empleado con cargo Veterinario.</div>
+                            <?php endif; ?>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Diagnóstico</label>
@@ -308,8 +523,13 @@ require_once __DIR__ . '/includes/header.php';
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Veterinario</label>
-                            <input type="text" name="veterinario" id="ec_veterinario" class="form-control" required>
-                            <div class="invalid-feedback">Este campo es requerido.</div>
+                            <select name="veterinario" id="ec_veterinario" class="form-select" required>
+                                <option value="">— Seleccione veterinario —</option>
+                                <?php foreach ($veterinarios_lista as $v): ?>
+                                <option value="<?= e($v['nombre_completo']) ?>"><?= e($v['nombre_completo']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="invalid-feedback">Seleccione un veterinario.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Diagnóstico</label>

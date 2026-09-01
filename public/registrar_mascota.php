@@ -1,14 +1,17 @@
 <?php
 require_once __DIR__ . '/includes/seguridad.php';
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/identificadores_mascotas.php';
 
 $mensaje_error = $_SESSION['mensaje_error'] ?? '';
 unset($_SESSION['mensaje_error']);
 
 $pdo  = getDB();
-$stmt = $pdo->query("SELECT MAX(CAST(SUBSTRING(identificador, 3) AS UNSIGNED)) FROM mascotas WHERE identificador REGEXP '^M-[0-9]+$'");
-$max  = (int)$stmt->fetchColumn();
-$siguiente_id = 'M-' . str_pad($max + 1, 3, '0', STR_PAD_LEFT);
+$siguientesIds = [];
+foreach (['Perro','Gato','Ave','Otro'] as $tipoEspecie) {
+    $siguientesIds[$tipoEspecie] = siguienteIdentificadorMascota($pdo, $tipoEspecie);
+}
+$siguiente_id = $siguientesIds['Perro'];
 
 require_once __DIR__ . '/includes/header.php';
 ?>
@@ -37,7 +40,7 @@ require_once __DIR__ . '/includes/header.php';
                         <i class="bi bi-person-circle text-primary"></i>Datos del Dueño
                     </div>
                     <div class="row g-3 mb-4">
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label class="form-label">Nombre Completo</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-person"></i></span>
@@ -46,7 +49,18 @@ require_once __DIR__ . '/includes/header.php';
                                 <div class="invalid-feedback">Este campo es requerido.</div>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6">
+                            <label class="form-label">RUT</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-person-vcard"></i></span>
+                                <input type="text" name="dueno_rut" class="form-control rut-input"
+                                       placeholder="Ej: 12.345.678-5" maxlength="12"
+                                       autocomplete="off" required>
+                                <div class="invalid-feedback">Ingrese un RUT chileno válido.</div>
+                            </div>
+                            <div class="form-text text-muted">Si el RUT ya existe, la mascota se asociará al mismo dueño.</div>
+                        </div>
+                        <div class="col-md-6">
                             <label class="form-label">Teléfono (WhatsApp)</label>
                             <div class="input-group">
                                 <span class="input-group-text fw-semibold">+569</span>
@@ -56,7 +70,7 @@ require_once __DIR__ . '/includes/header.php';
                                 <div class="invalid-feedback">Ingrese los 8 dígitos restantes.</div>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label class="form-label">Correo Electrónico</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-envelope"></i></span>
@@ -78,7 +92,7 @@ require_once __DIR__ . '/includes/header.php';
                             <label class="form-label">Identificador Único</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
-                                <input type="text" name="identificador" class="form-control bg-light"
+                                <input type="text" name="identificador" id="identificadorMascota" class="form-control bg-light"
                                        value="<?= e($siguiente_id) ?>" readonly>
                             </div>
                             <div class="form-text text-muted">Generado automáticamente.</div>
@@ -142,6 +156,20 @@ require_once __DIR__ . '/includes/header.php';
 </div>
 
 <script>
+function formatearRut(valor) {
+    var limpio = valor.toUpperCase().replace(/[^0-9K]/g, '').slice(0, 9);
+    if (limpio.length < 2) return limpio;
+    var dv = limpio.slice(-1);
+    var cuerpo = limpio.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return cuerpo + '-' + dv;
+}
+
+document.querySelectorAll('.rut-input').forEach(function(input) {
+    input.addEventListener('input', function() {
+        this.value = formatearRut(this.value);
+    });
+});
+
 var razasPorEspecie = {
     Perro: [
         'Mestizo','Labrador Retriever','Golden Retriever','Pastor Alemán','Bulldog Francés',
@@ -178,7 +206,10 @@ function actualizarRazas(especie) {
 
 document.getElementById('selectEspecie').addEventListener('change', function() {
     actualizarRazas(this.value);
+    document.getElementById('identificadorMascota').value = siguientesIds[this.value] || 'O-001';
 });
+
+var siguientesIds = <?= json_encode($siguientesIds, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 
 // Poblar al cargar
 actualizarRazas(document.getElementById('selectEspecie').value);
